@@ -1,0 +1,7 @@
+**/node_modules/
+
+# Client
+client/web/dist/
+client/modules/graphql/generated/
+
+

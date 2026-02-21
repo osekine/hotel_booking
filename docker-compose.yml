@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: myapp_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend/api
+      dockerfile: Dockerfile
+    container_name: myapp_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - ./backend/api:/app
+      - /app/node_modules
+      - ./graphql:/app/graphql:ro
+    command: sh -c "npm install && npx prisma migrate deploy && npm run dev"
+    healthcheck:
+      # Uses node (guaranteed in the container) to make a GraphQL HTTP request.
+      # Apollo returns 400 for a malformed query — that still means the server is up.
+      # Exit 0 = healthy, exit 1 = unhealthy.
+      test:
+        - "CMD-SHELL"
+        - |
+          node -e "
+            const http = require('http');
+            const req = http.request(
+              { host: 'localhost', port: 4000, method: 'POST',
+                headers: { 'Content-Type': 'application/json' } },
+              (res) => process.exit(res.statusCode < 500 ? 0 : 1)
+            );
+            req.on('error', () => process.exit(1));
+            req.end(JSON.stringify({ query: '{__typename}' }));
+          "
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: client/web/Dockerfile
+      target: prod
+    container_name: myapp_web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

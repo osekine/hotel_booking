@@ -1,0 +1,46 @@
+query GetAvailability($roomId: ID!, $startDate: DateTime!, $endDate: DateTime!) {
+  availability(roomId: $roomId, startDate: $startDate, endDate: $endDate) {
+    roomId
+    startDate
+    endDate
+    isAvailable
+    conflicts {
+      id
+      guestName
+      startDate
+      endDate
+      status
+    }
+  }
+}
+
+mutation CreateBooking(
+  $roomId: ID!
+  $guestName: String!
+  $startDate: DateTime!
+  $endDate: DateTime!
+) {
+  createBooking(
+    roomId: $roomId
+    guestName: $guestName
+    startDate: $startDate
+    endDate: $endDate
+  ) {
+    id
+    roomId
+    guestName
+    startDate
+    endDate
+    status
+    createdAt
+  }
+}
+
+mutation CancelBooking($bookingId: ID!) {
+  cancelBooking(bookingId: $bookingId) {
+    id
+    roomId
+    status
+    canceledAt
+  }
+}

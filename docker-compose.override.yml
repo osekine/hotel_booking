@@ -1,0 +1,14 @@
+# Applied automatically by `docker compose up` (dev).
+services:
+  web:
+    build:
+      target: dev
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8888}:3000"
+    volumes:
+      - ./client/web:/app/client/web
+      - ./client/modules:/app/client/modules
+      - ./graphql:/app/graphql:ro
+      - /app/client/web/node_modules
+    environment:
+      - NODE_ENV=development

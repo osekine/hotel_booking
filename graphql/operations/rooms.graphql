@@ -1,0 +1,31 @@
+query GetRooms($hotelId: ID!) {
+  rooms(hotelId: $hotelId) {
+    id
+    hotelId
+    number
+    title
+    capacity
+    priceEur
+    createdAt
+  }
+}
+
+query GetRoom($id: ID!, $bookingStatus: BookingStatus) {
+  room(id: $id) {
+    id
+    hotelId
+    number
+    title
+    capacity
+    priceEur
+    bookings(status: $bookingStatus) {
+      id
+      guestName
+      startDate
+      endDate
+      status
+      createdAt
+      canceledAt
+    }
+  }
+}

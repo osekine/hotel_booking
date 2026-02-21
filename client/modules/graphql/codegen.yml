@@ -1,0 +1,18 @@
+# Paths are relative to cwd when codegen runs: /app/client/web
+# (invoked via `npm run codegen` from client/web/)
+schema: "../../graphql/schema.graphql"
+documents: "../../graphql/operations/**/*.graphql"
+generates:
+  ../modules/graphql/generated/index.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+      - typescript-react-apollo
+    config:
+      scalars:
+        DateTime: string
+      withHooks: true
+      withResultType: true
+      withMutationFn: true
+      withComponent: false
+      documentMode: documentNode
