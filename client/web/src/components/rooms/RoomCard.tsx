@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { GetRoomsQuery } from "@modules/graphql/generated";
 import { Button } from "../ui/Button";
 
@@ -5,10 +6,11 @@ type Room = GetRoomsQuery["rooms"][number];
 
 interface Props {
   room: Room;
-  onSelect: (id: string, number: string) => void;
+  hotelId: string;
 }
 
-export function RoomCard({ room, onSelect }: Props) {
+export function RoomCard({ room, hotelId }: Props) {
+  const navigate = useNavigate();
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
       <div>
@@ -18,7 +20,9 @@ export function RoomCard({ room, onSelect }: Props) {
           Capacity: {room.capacity} · €{room.priceEur}/night
         </p>
       </div>
-      <Button onClick={() => onSelect(room.id, room.number)}>View →</Button>
+      <Button onClick={() => navigate(`/hotels/${hotelId}/rooms/${room.id}`)}>
+        View →
+      </Button>
     </div>
   );
 }

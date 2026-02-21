@@ -1,7 +1,6 @@
 import { GetRoomQuery } from "@modules/graphql/generated";
 import { CancelBookingButton } from "./CancelBookingButton";
 
-// Type derived from codegen — stays in sync with schema automatically.
 type Booking = GetRoomQuery["room"]["bookings"][number];
 
 interface Props {
@@ -13,9 +12,7 @@ interface Props {
 export function BookingList({ bookings, loading, error }: Props) {
   if (loading) return <p className="text-gray-500">Loading bookings…</p>;
   if (error) return <p className="text-red-600">Error: {error}</p>;
-  if (bookings.length === 0) {
-    return <p className="text-gray-500">No active bookings.</p>;
-  }
+  if (bookings.length === 0) return <p className="text-gray-500">No active bookings.</p>;
 
   return (
     <div className="flex flex-col gap-3">

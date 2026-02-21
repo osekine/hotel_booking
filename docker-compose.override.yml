@@ -1,4 +1,5 @@
 # Applied automatically by `docker compose up` (dev).
+# For prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 services:
   web:
     build:

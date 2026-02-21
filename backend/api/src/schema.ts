@@ -3,12 +3,10 @@ import { join } from "path";
 import { PrismaClient, BookingStatus } from "@prisma/client";
 import { GraphQLError } from "graphql";
 
-// Shared schema.graphql is source of truth for all clients and the backend.
-//
-// The graphql/ folder is mounted in docker-compose as ./graphql:/app/graphql:ro
-// __dirname is /app/src  (dev, ts-node-dev)
-// __dirname is /app/dist (prod, node dist/index.js)
-// In both cases: ../graphql resolves to /app/graphql ✓
+// Shared schema.graphql is the single source of truth for all clients and the backend.
+// Mounted in docker-compose as ./graphql:/app/graphql:ro
+// __dirname = /app/src (dev, ts-node-dev) or /app/dist (prod, node)
+// ../graphql resolves to /app/graphql in both cases ✓
 export const typeDefs = readFileSync(
   join(__dirname, "../graphql/schema.graphql"),
   "utf-8"
@@ -31,7 +29,6 @@ function asDate(value: unknown, field: string): Date {
   return d;
 }
 
-// Полуинтервал [start, end). Валидация: start < end.
 function validateRange(start: Date, end: Date) {
   if (start.getTime() >= end.getTime()) {
     throw new GraphQLError("Invalid date range: startDate must be < endDate", {
@@ -46,7 +43,6 @@ async function findConflicts(
   start: Date,
   end: Date
 ) {
-  // Пересечение полуинтервалов: existing.start < end && existing.end > start
   return prisma.booking.findMany({
     where: {
       roomId,
@@ -58,7 +54,6 @@ async function findConflicts(
   });
 }
 
-// Перевод ошибки Postgres exclusion constraint в понятный GraphQL error
 function mapDbError(e: unknown): GraphQLError | null {
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes("23P01") || msg.toLowerCase().includes("exclusion")) {
@@ -102,9 +97,7 @@ export const resolvers = {
       const start = asDate(args.startDate, "startDate");
       const end = asDate(args.endDate, "endDate");
       validateRange(start, end);
-
       const conflicts = await findConflicts(ctx.prisma, args.roomId, start, end);
-
       return {
         roomId: args.roomId,
         startDate: start,
@@ -118,19 +111,13 @@ export const resolvers = {
   Mutation: {
     createBooking: async (
       _: unknown,
-      args: {
-        roomId: string;
-        guestName: string;
-        startDate: string;
-        endDate: string;
-      },
+      args: { roomId: string; guestName: string; startDate: string; endDate: string },
       ctx: Context
     ) => {
       const start = asDate(args.startDate, "startDate");
       const end = asDate(args.endDate, "endDate");
       validateRange(start, end);
 
-      // Быстрая проверка конфликтов (для UX — до попытки записи в БД)
       const conflicts = await findConflicts(ctx.prisma, args.roomId, start, end);
       if (conflicts.length > 0) {
         throw new GraphQLError("Booking conflicts with existing booking(s)", {
@@ -148,14 +135,12 @@ export const resolvers = {
             status: BookingStatus.ACTIVE,
           },
         });
-
         ctx.log("booking_created", {
           bookingId: booking.id,
           roomId: booking.roomId,
           startDate: booking.startDate.toISOString(),
           endDate: booking.endDate.toISOString(),
         });
-
         return booking;
       } catch (e) {
         const mapped = mapDbError(e);
@@ -164,11 +149,7 @@ export const resolvers = {
       }
     },
 
-    cancelBooking: async (
-      _: unknown,
-      args: { bookingId: string },
-      ctx: Context
-    ) => {
+    cancelBooking: async (_: unknown, args: { bookingId: string }, ctx: Context) => {
       const existing = await ctx.prisma.booking.findUnique({
         where: { id: args.bookingId },
       });
@@ -178,20 +159,13 @@ export const resolvers = {
         });
       }
       if (existing.status === BookingStatus.CANCELED) {
-        // идемпотентность: вернуть как есть
         return existing;
       }
-
       const canceled = await ctx.prisma.booking.update({
         where: { id: args.bookingId },
         data: { status: BookingStatus.CANCELED, canceledAt: new Date() },
       });
-
-      ctx.log("booking_canceled", {
-        bookingId: canceled.id,
-        roomId: canceled.roomId,
-      });
-
+      ctx.log("booking_canceled", { bookingId: canceled.id, roomId: canceled.roomId });
       return canceled;
     },
   },

@@ -1,8 +1,6 @@
 import { useCancelBookingMutation, GetRoomDocument } from "@modules/graphql/generated";
 import { Button } from "../ui/Button";
 
-const REFETCH_AFTER_CANCEL = [GetRoomDocument];
-
 interface Props {
   bookingId: string;
 }
@@ -10,7 +8,7 @@ interface Props {
 export function CancelBookingButton({ bookingId }: Props) {
   const [cancelBooking, { loading }] = useCancelBookingMutation({
     variables: { bookingId },
-    refetchQueries: REFETCH_AFTER_CANCEL,
+    refetchQueries: [GetRoomDocument],
     awaitRefetchQueries: true,
   });
 
@@ -19,9 +17,7 @@ export function CancelBookingButton({ bookingId }: Props) {
       variant="danger"
       loading={loading}
       onClick={() => {
-        if (window.confirm("Cancel this booking?")) {
-          cancelBooking();
-        }
+        if (window.confirm("Cancel this booking?")) cancelBooking();
       }}
     >
       Cancel

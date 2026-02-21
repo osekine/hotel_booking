@@ -2,7 +2,6 @@ import { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
-  // Optional custom fallback; if omitted, renders the default error card.
   fallback?: ReactNode;
 }
 
@@ -19,7 +18,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Replace with a real logger (Sentry, Datadog) in production.
     console.error("[ErrorBoundary] Uncaught render error:", error, info.componentStack);
   }
 
@@ -30,7 +28,6 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
-
       return (
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
           <p className="font-semibold text-red-700">Something went wrong</p>
@@ -46,7 +43,6 @@ export class ErrorBoundary extends Component<Props, State> {
         </div>
       );
     }
-
     return this.props.children;
   }
 }

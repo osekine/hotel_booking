@@ -7,8 +7,6 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-// Fixed: was using a fragile string parser that broke on CSS values containing ":".
-// Now uses a plain lookup of Tailwind class strings — zero runtime parsing.
 const variantClasses: Record<Variant, string> = {
   primary:   "bg-blue-600 text-white hover:bg-blue-700",
   secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
@@ -24,7 +22,6 @@ export function Button({
   ...rest
 }: Props) {
   const isDisabled = disabled ?? loading;
-
   return (
     <button
       disabled={isDisabled}

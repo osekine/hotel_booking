@@ -7,7 +7,6 @@ interface Props extends InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ label, error, id, ...rest }: Props) {
   const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
-
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={inputId} className="text-sm font-medium text-gray-700">

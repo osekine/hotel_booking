@@ -1,14 +1,8 @@
-# Dependencies — always reinstalled inside container
 **/node_modules
-
-# Build outputs
 client/web/dist
 client/modules/graphql/generated
-
-# Git and editor
 .git
 .gitignore
 **/.DS_Store
-
-# Test outputs
+backend/
 coverage/

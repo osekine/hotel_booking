@@ -1,15 +1,12 @@
+import { useParams } from "react-router-dom";
 import { useGetRoomQuery } from "@modules/graphql/generated";
-import { BookingList } from "../bookings/BookingList";
-import { BookingForm } from "../bookings/BookingForm";
-import { AvailabilityChecker } from "../availability/AvailabilityChecker";
+import { BookingPanel } from "../components/bookings/BookingPanel";
+import { BookingList } from "../components/bookings/BookingList";
 
-interface Props {
-  roomId: string;
-}
-
-export function RoomDetail({ roomId }: Props) {
+export function RoomDetailPage() {
+  const { roomId } = useParams<{ roomId: string }>();
   const { data, loading, error } = useGetRoomQuery({
-    variables: { id: roomId },
+    variables: { id: roomId! },
   });
 
   if (loading) return <p className="text-gray-500">Loading room…</p>;
@@ -19,7 +16,6 @@ export function RoomDetail({ roomId }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Room summary */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
         <h3 className="font-semibold text-gray-900">
           Room {room.number}{room.title ? ` — ${room.title}` : ""}
@@ -30,18 +26,12 @@ export function RoomDetail({ roomId }: Props) {
       </div>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Check Availability</h2>
-        <AvailabilityChecker roomId={roomId} />
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">New Booking</h2>
-        <BookingForm roomId={roomId} />
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Book this room</h2>
+        <BookingPanel roomId={roomId!} />
       </section>
 
       <section>
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Active Bookings</h2>
-        {/* Bookings come from this query — BookingList is purely presentational */}
         <BookingList bookings={room.bookings} />
       </section>
     </div>

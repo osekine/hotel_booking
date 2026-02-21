@@ -14,8 +14,8 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 });
 
 const httpLink = new HttpLink({
-  // In dev: Vite proxy forwards /graphql → http://api:4000/graphql
-  // In prod: nginx routes /graphql → http://api:4000/graphql
+  // Dev: Vite proxy /graphql → http://api:4000/graphql
+  // Prod: nginx /graphql → http://api:4000/graphql
   uri: "/graphql",
 });
 
@@ -23,10 +23,6 @@ export const client = new ApolloClient({
   link: from([errorLink, httpLink]),
   cache,
   defaultOptions: {
-    watchQuery: {
-      // Always validate cache against network on first load.
-      // Keeps UI consistent after mutations with refetchQueries.
-      fetchPolicy: "cache-and-network",
-    },
+    watchQuery: { fetchPolicy: "cache-and-network" },
   },
 });
