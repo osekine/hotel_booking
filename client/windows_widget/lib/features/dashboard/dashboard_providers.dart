@@ -15,3 +15,8 @@ final hotelSummariesProvider = FutureProvider<List<HotelSummary>>((ref) async {
   final service = ref.watch(hotelSummaryServiceProvider);
   return service.loadSummaries();
 });
+
+final alwaysOnTopProvider = StateProvider<bool>((ref) => false);
+
+// 1.0 = полностью непрозрачное окно
+final windowOpacityProvider = StateProvider<double>((ref) => 1.0);
