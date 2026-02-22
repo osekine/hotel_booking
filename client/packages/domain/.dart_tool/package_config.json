@@ -3,7 +3,7 @@
   "packages": [
     {
       "name": "meta",
-      "rootUri": "file:///Users/macbook/.pub-cache/hosted/pub.dev/meta-1.18.1",
+      "rootUri": "file:///C:/Users/usr/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.18.1",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -14,9 +14,10 @@
       "languageVersion": "3.3"
     }
   ],
+  "generated": "2026-02-22T16:16:09.955609Z",
   "generator": "pub",
-  "generatorVersion": "3.10.0",
-  "flutterRoot": "file:///Users/macbook/flutter",
-  "flutterVersion": "3.38.2",
-  "pubCache": "file:///Users/macbook/.pub-cache"
+  "generatorVersion": "3.7.2",
+  "flutterRoot": "file:///C:/Users/usr/Flutter/flutter",
+  "flutterVersion": "3.29.3",
+  "pubCache": "file:///C:/Users/usr/AppData/Local/Pub/Cache"
 }

@@ -6,12 +6,12 @@
 // @dart = 3.3
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
-import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
-import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
-import 'package:connectivity_plus/connectivity_plus.dart' as connectivity_plus;
-import 'package:path_provider_linux/path_provider_linux.dart' as path_provider_linux;
-import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
-import 'package:path_provider_windows/path_provider_windows.dart' as path_provider_windows;
+import 'package:path_provider_android/path_provider_android.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:path_provider_linux/path_provider_linux.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
+import 'package:path_provider_windows/path_provider_windows.dart';
 
 @pragma('vm:entry-point')
 class _PluginRegistrant {
@@ -20,7 +20,7 @@ class _PluginRegistrant {
   static void register() {
     if (Platform.isAndroid) {
       try {
-        path_provider_android.PathProviderAndroid.registerWith();
+        PathProviderAndroid.registerWith();
       } catch (err) {
         print(
           '`path_provider_android` threw an error: $err. '
@@ -30,7 +30,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isIOS) {
       try {
-        path_provider_foundation.PathProviderFoundation.registerWith();
+        PathProviderFoundation.registerWith();
       } catch (err) {
         print(
           '`path_provider_foundation` threw an error: $err. '
@@ -40,7 +40,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isLinux) {
       try {
-        connectivity_plus.ConnectivityPlusLinuxPlugin.registerWith();
+        ConnectivityPlusLinuxPlugin.registerWith();
       } catch (err) {
         print(
           '`connectivity_plus` threw an error: $err. '
@@ -49,7 +49,7 @@ class _PluginRegistrant {
       }
 
       try {
-        path_provider_linux.PathProviderLinux.registerWith();
+        PathProviderLinux.registerWith();
       } catch (err) {
         print(
           '`path_provider_linux` threw an error: $err. '
@@ -59,7 +59,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isMacOS) {
       try {
-        path_provider_foundation.PathProviderFoundation.registerWith();
+        PathProviderFoundation.registerWith();
       } catch (err) {
         print(
           '`path_provider_foundation` threw an error: $err. '
@@ -69,7 +69,7 @@ class _PluginRegistrant {
 
     } else if (Platform.isWindows) {
       try {
-        path_provider_windows.PathProviderWindows.registerWith();
+        PathProviderWindows.registerWith();
       } catch (err) {
         print(
           '`path_provider_windows` threw an error: $err. '

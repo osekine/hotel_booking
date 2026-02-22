@@ -13,12 +13,13 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
-  @override
-  void initState() {
-    super.initState();
 
-    // Применяем pin
-    ref.listen<bool>(alwaysOnTopProvider, (_, next) async {
+  @override
+  Widget build(BuildContext context) {
+    final summaries = ref.watch(hotelSummariesProvider);
+    final pinned = ref.watch(alwaysOnTopProvider);
+    final opacity = ref.watch(windowOpacityProvider);
+     ref.listen<bool>(alwaysOnTopProvider, (_, next) async {
       await windowManager.setAlwaysOnTop(next);
     });
 
@@ -27,13 +28,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       // window_manager: setOpacity(opacity) :contentReference[oaicite:2]{index=2}
       await windowManager.setOpacity(next);
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final summaries = ref.watch(hotelSummariesProvider);
-    final pinned = ref.watch(alwaysOnTopProvider);
-    final opacity = ref.watch(windowOpacityProvider);
 
     Future<void> refresh() async {
       await ref.refresh(hotelSummariesProvider.future);

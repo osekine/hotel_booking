@@ -7,6 +7,7 @@ class WindowsWidgetApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Booking Widget',
       theme: ThemeData(
         brightness: Brightness.light,
