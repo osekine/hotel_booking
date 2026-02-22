@@ -7,6 +7,8 @@ Flutter clients: **mobile** + **windows_widget**
 
 # 🚀 Первый запуск
 
+## [видео](https://drive.google.com/file/d/1m00B_0a3MJtOMH73lH_bqzJAfm0UTNy2/view?usp=drive_link)
+
 ## 1️⃣ Поднять backend
 
 Из корня проекта:
