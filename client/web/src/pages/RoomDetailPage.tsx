@@ -14,6 +14,11 @@ export function RoomDetailPage() {
 
   const room = data!.room;
 
+  // A stable string that changes whenever the active bookings list changes.
+  // BookingPanel uses this to re-check availability after a cancellation
+  // without needing direct access to the bookings data.
+  const bookingsKey = room.bookings.map((b) => b.id).join(",");
+
   return (
     <div className="flex flex-col gap-8">
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -27,7 +32,7 @@ export function RoomDetailPage() {
 
       <section>
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Book this room</h2>
-        <BookingPanel roomId={roomId!} />
+        <BookingPanel roomId={roomId!} bookingsKey={bookingsKey} />
       </section>
 
       <section>
