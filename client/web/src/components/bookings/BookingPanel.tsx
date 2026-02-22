@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useGetAvailabilityLazyQuery,
   useCreateBookingMutation,
@@ -10,6 +10,10 @@ import { Modal } from "../ui/Modal";
 
 interface Props {
   roomId: string;
+  // Changes whenever the room's active bookings list changes (booking created or canceled).
+  // BookingPanel watches this to re-check availability without needing access to the
+  // bookings data itself — keeps the component focused on its own concern.
+  bookingsKey: string;
 }
 
 interface DateRange {
@@ -19,11 +23,7 @@ interface DateRange {
 
 type AvailabilityStatus = "idle" | "checking" | "available" | "unavailable";
 
-// Combined flow:
-// 1. User picks dates → availability check fires automatically
-// 2. Available → guest name field appears + Book button activates
-// 3. CONFLICT from server (race condition) → modal, dates reset
-export function BookingPanel({ roomId }: Props) {
+export function BookingPanel({ roomId, bookingsKey }: Props) {
   const [range, setRange] = useState<DateRange>({ startDate: "", endDate: "" });
   const [guestName, setGuestName] = useState("");
   const [guestNameError, setGuestNameError] = useState<string | null>(null);
@@ -39,12 +39,10 @@ export function BookingPanel({ roomId }: Props) {
       awaitRefetchQueries: true,
     });
 
-  useEffect(() => {
-    const { startDate, endDate } = range;
-    if (!startDate || !endDate || startDate >= endDate) {
-      setStatus("idle");
-      return;
-    }
+  // Runs the availability check for the currently selected date range.
+  // Extracted so it can be called both from the date-change effect
+  // and from the bookingsKey-change effect.
+  function runAvailabilityCheck(startDate: string, endDate: string) {
     setStatus("checking");
     checkAvailability({
       variables: {
@@ -53,8 +51,32 @@ export function BookingPanel({ roomId }: Props) {
         endDate: new Date(endDate).toISOString(),
       },
     });
+  }
+
+  // Re-check when either date changes.
+  useEffect(() => {
+    const { startDate, endDate } = range;
+    if (!startDate || !endDate || startDate >= endDate) {
+      setStatus("idle");
+      return;
+    }
+    runAvailabilityCheck(startDate, endDate);
   }, [range.startDate, range.endDate]);
 
+  // Re-check when bookings change (e.g. a cancellation happened).
+  // Skip the initial render — we only want to react to actual changes.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const { startDate, endDate } = range;
+    if (!startDate || !endDate || startDate >= endDate) return;
+    runAvailabilityCheck(startDate, endDate);
+  }, [bookingsKey]);
+
+  // Sync availability query result → local status.
   useEffect(() => {
     if (availLoading || !availData) return;
     setStatus(availData.availability.isAvailable ? "available" : "unavailable");
