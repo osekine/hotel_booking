@@ -1,0 +1,23 @@
+targets:
+  $default:
+    sources:
+      - $package$
+      - lib/**
+      - graphql/**
+
+    builders:
+      graphql_codegen:
+        options:
+          clients:
+            - graphql
+          scalars:
+            DateTime:
+              type: DateTime
+              fromJsonFunctionName: fromJsonDateTime
+              toJsonFunctionName: toJsonDateTime
+              import: package:api_client/src/graphql/client_factory.dart
+
+          schemaPath: graphql/schema.graphql
+          assetsPath: graphql/**.graphql
+
+          outputDirectory: /lib/src/graphql/generated

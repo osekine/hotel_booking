@@ -1,0 +1,61 @@
+scalar DateTime
+
+type Hotel {
+  id: ID!
+  name: String!
+  city: String!
+  rooms: [Room!]!
+  createdAt: DateTime!
+}
+
+type Room {
+  id: ID!
+  hotelId: ID!
+  number: String!
+  title: String
+  capacity: Int!
+  priceEur: Int!
+  bookings(status: BookingStatus = ACTIVE): [Booking!]!
+  createdAt: DateTime!
+}
+
+enum BookingStatus {
+  ACTIVE
+  CANCELED
+}
+
+type Booking {
+  id: ID!
+  roomId: ID!
+  guestName: String!
+  startDate: DateTime!
+  endDate: DateTime!
+  status: BookingStatus!
+  createdAt: DateTime!
+  canceledAt: DateTime
+}
+
+type Availability {
+  roomId: ID!
+  startDate: DateTime!
+  endDate: DateTime!
+  isAvailable: Boolean!
+  conflicts: [Booking!]!
+}
+
+type Query {
+  hotels: [Hotel!]!
+  rooms(hotelId: ID!): [Room!]!
+  room(id: ID!): Room!
+  availability(roomId: ID!, startDate: DateTime!, endDate: DateTime!): Availability!
+}
+
+type Mutation {
+  createBooking(
+    roomId: ID!
+    guestName: String!
+    startDate: DateTime!
+    endDate: DateTime!
+  ): Booking!
+  cancelBooking(bookingId: ID!): Booking!
+}

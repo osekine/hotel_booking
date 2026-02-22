@@ -1,0 +1,8 @@
+query GetHotels {
+  hotels {
+    id
+    name
+    city
+    createdAt
+  }
+}
