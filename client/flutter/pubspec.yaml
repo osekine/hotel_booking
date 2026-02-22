@@ -1,0 +1,17 @@
+name: hotel_booking_flutter
+publish_to: none
+environment:
+  sdk: ^3.10.0
+workspace:
+  - mobile
+  - windows_widget
+  - packages/api_client
+  - packages/domain
+dev_dependencies:
+  melos: ^7.4.0
+
+melos:
+  command:
+    bootstrap:
+      hooks:
+        post: cd packages/api_client && bash tool/build.sh

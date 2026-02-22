@@ -1,0 +1,5 @@
+melos:
+  command:
+    bootstrap:
+      hooks:
+        post: bash packages/api_client/tool/build.sh

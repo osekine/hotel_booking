@@ -1,0 +1,7 @@
+name: domain
+resolution: workspace
+version: 0.1.0
+environment:
+  sdk: ^3.10.0
+dependencies:
+  meta: ^1.11.0

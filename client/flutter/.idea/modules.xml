@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+<module fileurl="file://$PROJECT_DIR$/packages/api_client/melos_api_client.iml" filepath="$PROJECT_DIR$/packages/api_client/melos_api_client.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/domain/melos_domain.iml" filepath="$PROJECT_DIR$/packages/domain/melos_domain.iml"/>
+<module fileurl="file://$PROJECT_DIR$/mobile/melos_mobile.iml" filepath="$PROJECT_DIR$/mobile/melos_mobile.iml"/>
+<module fileurl="file://$PROJECT_DIR$/windows_widget/melos_windows_widget.iml" filepath="$PROJECT_DIR$/windows_widget/melos_windows_widget.iml"/>
+<module fileurl="file://$PROJECT_DIR$/melos_hotel_booking_flutter.iml" filepath="$PROJECT_DIR$/melos_hotel_booking_flutter.iml"/>
+    </modules>
+  </component>
+</project>
