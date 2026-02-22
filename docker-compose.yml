@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: myapp_db
+    container_name: hotel_booking_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -21,7 +21,7 @@ services:
     build:
       context: ./backend/api
       dockerfile: Dockerfile
-    container_name: myapp_api
+    container_name:  hotel_booking_api
     restart: unless-stopped
     environment:
       NODE_ENV: development
@@ -61,7 +61,7 @@ services:
       context: .
       dockerfile: client/web/Dockerfile
       target: prod
-    container_name: myapp_web
+    container_name: hotel_booking_web
     restart: unless-stopped
     depends_on:
       api:
