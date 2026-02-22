@@ -1,0 +1,22 @@
+{
+  "configVersion": 2,
+  "packages": [
+    {
+      "name": "meta",
+      "rootUri": "file:///Users/macbook/.pub-cache/hosted/pub.dev/meta-1.18.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "domain",
+      "rootUri": "../",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    }
+  ],
+  "generator": "pub",
+  "generatorVersion": "3.10.0",
+  "flutterRoot": "file:///Users/macbook/flutter",
+  "flutterVersion": "3.38.2",
+  "pubCache": "file:///Users/macbook/.pub-cache"
+}

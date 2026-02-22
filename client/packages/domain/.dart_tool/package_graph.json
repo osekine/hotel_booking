@@ -1,0 +1,21 @@
+{
+  "roots": [
+    "domain"
+  ],
+  "packages": [
+    {
+      "name": "domain",
+      "version": "0.1.0",
+      "dependencies": [
+        "meta"
+      ],
+      "devDependencies": []
+    },
+    {
+      "name": "meta",
+      "version": "1.18.1",
+      "dependencies": []
+    }
+  ],
+  "configVersion": 1
+}

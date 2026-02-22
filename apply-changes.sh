@@ -1,535 +1,20 @@
-#! bin/bash
+#!/bin/bash
 set -euo pipefail
 
+# Run this from repo root: project/
 ROOT_DIR="$(pwd)"
-
-# Paths
-DOMAIN_DIR="$ROOT_DIR/client/packages/domain"
-API_CLIENT_DIR="$ROOT_DIR/client/packages/api_client"
-MOBILE_DIR="$ROOT_DIR/client/mobile"
-
-mkdir -p "$DOMAIN_DIR/lib/src/entities"
-mkdir -p "$DOMAIN_DIR/lib/src/errors"
-mkdir -p "$DOMAIN_DIR/lib/src/repositories"
-
-mkdir -p "$API_CLIENT_DIR/lib/src/config"
-mkdir -p "$API_CLIENT_DIR/lib/src/graphql"
-mkdir -p "$API_CLIENT_DIR/lib/src/mappers"
-mkdir -p "$API_CLIENT_DIR/lib/src/repositories"
-
-mkdir -p "$MOBILE_DIR/lib/di"
-mkdir -p "$MOBILE_DIR/lib/routing"
-mkdir -p "$MOBILE_DIR/lib/utils"
-mkdir -p "$MOBILE_DIR/lib/features/hotels"
-mkdir -p "$MOBILE_DIR/lib/features/rooms"
-mkdir -p "$MOBILE_DIR/lib/features/room"
-
-############################################
-# domain package
-############################################
-
-cat > "$DOMAIN_DIR/pubspec.yaml" <<'YAML'
-name: domain
-version: 0.1.0
-environment:
-  sdk: ">=3.3.0 <4.0.0"
-dependencies:
-  meta: ^1.11.0
-YAML
-
-cat > "$DOMAIN_DIR/lib/domain.dart" <<'DART'
-library domain;
-
-export 'src/entities/hotel.dart';
-export 'src/entities/room.dart';
-export 'src/entities/booking.dart';
-export 'src/entities/availability.dart';
-export 'src/entities/date_range.dart';
-
-export 'src/errors/failures.dart';
-
-export 'src/repositories/hotel_repository.dart';
-export 'src/repositories/room_repository.dart';
-export 'src/repositories/booking_repository.dart';
-DART
-
-cat > "$DOMAIN_DIR/lib/src/entities/hotel.dart" <<'DART'
-class Hotel {
-  final String id;
-  final String name;
-  final String city;
-
-  const Hotel({required this.id, required this.name, required this.city});
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/entities/room.dart" <<'DART'
-class Room {
-  final String id;
-  final String hotelId;
-  final String number;
-  final String? title;
-  final int capacity;
-  final int priceEur;
-
-  const Room({
-    required this.id,
-    required this.hotelId,
-    required this.number,
-    required this.title,
-    required this.capacity,
-    required this.priceEur,
-  });
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/entities/booking.dart" <<'DART'
-enum BookingStatus { active, canceled }
-
-class Booking {
-  final String id;
-  final String roomId;
-  final String guestName;
-  final DateTime startDate;
-  final DateTime endDate;
-  final BookingStatus status;
-  final DateTime? createdAt;
-  final DateTime? canceledAt;
-
-  const Booking({
-    required this.id,
-    required this.roomId,
-    required this.guestName,
-    required this.startDate,
-    required this.endDate,
-    required this.status,
-    this.createdAt,
-    this.canceledAt,
-  });
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/entities/availability.dart" <<'DART'
-import 'booking.dart';
-
-class Availability {
-  final String roomId;
-  final DateTime startDate;
-  final DateTime endDate;
-  final bool isAvailable;
-  final List<Booking> conflicts;
-
-  const Availability({
-    required this.roomId,
-    required this.startDate,
-    required this.endDate,
-    required this.isAvailable,
-    required this.conflicts,
-  });
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/entities/date_range.dart" <<'DART'
-class DateRange {
-  final DateTime start;
-  final DateTime end;
-
-  DateRange({required this.start, required this.end}) {
-    if (!end.isAfter(start)) throw ArgumentError('end must be after start');
-  }
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/errors/failures.dart" <<'DART'
-sealed class Failure implements Exception {
-  final String message;
-  const Failure(this.message);
-  @override
-  String toString() => message;
-}
-
-class NetworkFailure extends Failure {
-  const NetworkFailure(super.message);
-}
-
-class UnknownFailure extends Failure {
-  const UnknownFailure(super.message);
-}
-
-class BookingConflictFailure extends Failure {
-  final int conflictsCount;
-  const BookingConflictFailure({
-    required this.conflictsCount,
-    super.message = 'Booking conflicts with existing booking(s)',
-  });
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/repositories/hotel_repository.dart" <<'DART'
-import '../entities/hotel.dart';
-
-abstract interface class HotelRepository {
-  Future<List<Hotel>> getHotels();
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/repositories/room_repository.dart" <<'DART'
-import '../entities/room.dart';
-import '../entities/booking.dart';
-
-class RoomDetails {
-  final Room room;
-  final List<Booking> bookings; // ACTIVE only
-  const RoomDetails({required this.room, required this.bookings});
-}
-
-abstract interface class RoomRepository {
-  Future<List<Room>> getRooms({required String hotelId});
-  Future<RoomDetails> getRoomDetails({required String roomId});
-}
-DART
-
-cat > "$DOMAIN_DIR/lib/src/repositories/booking_repository.dart" <<'DART'
-import '../entities/availability.dart';
-import '../entities/booking.dart';
-
-abstract interface class BookingRepository {
-  Future<Availability> checkAvailability({
-    required String roomId,
-    required DateTime start,
-    required DateTime end,
-  });
-
-  Future<Booking> createBooking({
-    required String roomId,
-    required String guestName,
-    required DateTime start,
-    required DateTime end,
-  });
-
-  Future<void> cancelBooking({required String bookingId});
-}
-DART
-
-############################################
-# api_client package
-############################################
-
-cat > "$API_CLIENT_DIR/pubspec.yaml" <<'YAML'
-name: api_client
-version: 0.1.0
-environment:
-  sdk: ">=3.3.0 <4.0.0"
-
-dependencies:
-  domain:
-    path: ../domain
-  graphql_flutter: ^5.2.0-beta.7
-  meta: ^1.11.0
-
-dev_dependencies:
-  build_runner: ^2.4.9
-  graphql_codegen: ^1.2.2
-  lints: ^5.0.0
-YAML
-
-cat > "$API_CLIENT_DIR/build.yaml" <<'YAML'
-targets:
-  $default:
-    builders:
-      graphql_codegen:
-        options:
-          clients:
-            - graphql
-          scalars:
-            DateTime:
-              type: DateTime
-              fromJsonFunctionName: fromJsonDateTime
-              toJsonFunctionName: toJsonDateTime
-          assetsPath: ../../../graphql/operations/*.graphql
-          schemaPath: ../../../graphql/schema.graphql
-          outputDirectory: lib/src/graphql/generated
-          generatedFileName: graphql_api
-YAML
-
-cat > "$API_CLIENT_DIR/lib/api_client.dart" <<'DART'
-library api_client;
-
-export 'src/config/api_config.dart';
-export 'src/graphql/client_factory.dart';
-export 'src/repositories/gql_hotel_repository.dart';
-export 'src/repositories/gql_room_repository.dart';
-export 'src/repositories/gql_booking_repository.dart';
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/config/api_config.dart" <<'DART'
-class ApiConfig {
-  final String graphqlUrl;
-  const ApiConfig({required this.graphqlUrl});
-}
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/graphql/client_factory.dart" <<'DART'
-import 'package:graphql_flutter/graphql_flutter.dart';
-
-DateTime fromJsonDateTime(Object? json) => DateTime.parse(json! as String);
-Object toJsonDateTime(DateTime value) => value.toUtc().toIso8601String();
-
-class GraphQLClientFactory {
-  final String graphqlUrl;
-  GraphQLClientFactory({required this.graphqlUrl});
-
-  GraphQLClient create() {
-    final link = HttpLink(graphqlUrl);
-    return GraphQLClient(
-      link: link,
-      cache: GraphQLCache(store: InMemoryStore()),
-    );
-  }
-}
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/mappers/error_mapper.dart" <<'DART'
-import 'package:domain/domain.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
-
-Failure mapOperationException(OperationException ex) {
-  if (ex.linkException != null) {
-    return NetworkFailure(ex.linkException.toString());
-  }
-
-  if (ex.graphqlErrors.isNotEmpty) {
-    final err = ex.graphqlErrors.first;
-    final code = err.extensions?['code'];
-    if (code == 'CONFLICT') {
-      final count = (err.extensions?['conflictsCount'] as int?) ?? 0;
-      return BookingConflictFailure(conflictsCount: count);
-    }
-    return UnknownFailure(err.message);
-  }
-
-  return UnknownFailure(ex.toString());
-}
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/mappers/dto_mapper.dart" <<'DART'
-import 'package:domain/domain.dart';
-import '../graphql/generated/graphql_api.graphql.dart';
-
-BookingStatus _mapStatus(Enum$BookingStatus s) {
-  return switch (s) {
-    Enum$BookingStatus.ACTIVE => BookingStatus.active,
-    Enum$BookingStatus.CANCELED => BookingStatus.canceled,
-    _ => BookingStatus.active,
-  };
-}
-
-Hotel mapHotel(Query$GetHotels$hotels dto) {
-  return Hotel(id: dto.id, name: dto.name, city: dto.city);
-}
-
-Room mapRoom(Query$GetRooms$rooms dto) {
-  return Room(
-    id: dto.id,
-    hotelId: dto.hotelId,
-    number: dto.number,
-    title: dto.title,
-    capacity: dto.capacity,
-    priceEur: dto.priceEur,
-  );
-}
-
-RoomDetails mapRoomDetails(Query$GetRoom$room dto) {
-  final room = Room(
-    id: dto.id,
-    hotelId: dto.hotelId,
-    number: dto.number,
-    title: dto.title,
-    capacity: dto.capacity,
-    priceEur: dto.priceEur,
-  );
-
-  final bookings = dto.bookings.map((b) {
-    return Booking(
-      id: b.id,
-      roomId: b.roomId,
-      guestName: b.guestName,
-      startDate: b.startDate,
-      endDate: b.endDate,
-      status: _mapStatus(b.status),
-      createdAt: b.createdAt,
-      canceledAt: b.canceledAt,
-    );
-  }).toList();
-
-  return RoomDetails(room: room, bookings: bookings);
-}
-
-Availability mapAvailability(Query$GetAvailability$availability dto) {
-  final conflicts = dto.conflicts.map((c) {
-    return Booking(
-      id: c.id,
-      roomId: dto.roomId,
-      guestName: c.guestName,
-      startDate: c.startDate,
-      endDate: c.endDate,
-      status: _mapStatus(c.status),
-    );
-  }).toList();
-
-  return Availability(
-    roomId: dto.roomId,
-    startDate: dto.startDate,
-    endDate: dto.endDate,
-    isAvailable: dto.isAvailable,
-    conflicts: conflicts,
-  );
-}
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/repositories/gql_hotel_repository.dart" <<'DART'
-import 'package:domain/domain.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
-import '../graphql/generated/graphql_api.graphql.dart';
-import '../mappers/dto_mapper.dart';
-import '../mappers/error_mapper.dart';
-
-class GqlHotelRepository implements HotelRepository {
-  final GraphQLClient _client;
-  GqlHotelRepository(this._client);
-
-  @override
-  Future<List<Hotel>> getHotels() async {
-    final res = await _client.query$GetHotels(
-      Options$Query$GetHotels(fetchPolicy: FetchPolicy.networkOnly),
-    );
-    if (res.hasException) throw mapOperationException(res.exception!);
-    return res.parsedData!.hotels.map(mapHotel).toList();
-  }
-}
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/repositories/gql_room_repository.dart" <<'DART'
-import 'package:domain/domain.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
-import '../graphql/generated/graphql_api.graphql.dart';
-import '../mappers/dto_mapper.dart';
-import '../mappers/error_mapper.dart';
-
-class GqlRoomRepository implements RoomRepository {
-  final GraphQLClient _client;
-  GqlRoomRepository(this._client);
-
-  @override
-  Future<List<Room>> getRooms({required String hotelId}) async {
-    final res = await _client.query$GetRooms(
-      Options$Query$GetRooms(
-        variables: Variables$Query$GetRooms(hotelId: hotelId),
-        fetchPolicy: FetchPolicy.networkOnly,
-      ),
-    );
-    if (res.hasException) throw mapOperationException(res.exception!);
-    return res.parsedData!.rooms.map(mapRoom).toList();
-  }
-
-  @override
-  Future<RoomDetails> getRoomDetails({required String roomId}) async {
-    final res = await _client.query$GetRoom(
-      Options$Query$GetRoom(
-        variables: Variables$Query$GetRoom(
-          id: roomId,
-          bookingStatus: Enum$BookingStatus.ACTIVE,
-        ),
-        fetchPolicy: FetchPolicy.networkOnly,
-      ),
-    );
-    if (res.hasException) throw mapOperationException(res.exception!);
-    return mapRoomDetails(res.parsedData!.room);
-  }
-}
-DART
-
-cat > "$API_CLIENT_DIR/lib/src/repositories/gql_booking_repository.dart" <<'DART'
-import 'package:domain/domain.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
-import '../graphql/generated/graphql_api.graphql.dart';
-import '../mappers/dto_mapper.dart';
-import '../mappers/error_mapper.dart';
-
-class GqlBookingRepository implements BookingRepository {
-  final GraphQLClient _client;
-  GqlBookingRepository(this._client);
-
-  @override
-  Future<Availability> checkAvailability({
-    required String roomId,
-    required DateTime start,
-    required DateTime end,
-  }) async {
-    final res = await _client.query$GetAvailability(
-      Options$Query$GetAvailability(
-        variables: Variables$Query$GetAvailability(
-          roomId: roomId,
-          startDate: start,
-          endDate: end,
-        ),
-        fetchPolicy: FetchPolicy.networkOnly,
-      ),
-    );
-    if (res.hasException) throw mapOperationException(res.exception!);
-    return mapAvailability(res.parsedData!.availability);
-  }
-
-  @override
-  Future<Booking> createBooking({
-    required String roomId,
-    required String guestName,
-    required DateTime start,
-    required DateTime end,
-  }) async {
-    final res = await _client.mutate$CreateBooking(
-      Options$Mutation$CreateBooking(
-        variables: Variables$Mutation$CreateBooking(
-          roomId: roomId,
-          guestName: guestName,
-          startDate: start,
-          endDate: end,
-        ),
-      ),
-    );
-    if (res.hasException) throw mapOperationException(res.exception!);
-
-    final b = res.parsedData!.createBooking;
-    return Booking(
-      id: b.id,
-      roomId: b.roomId,
-      guestName: b.guestName,
-      startDate: b.startDate,
-      endDate: b.endDate,
-      status: BookingStatus.active,
-      createdAt: b.createdAt,
-    );
-  }
-
-  @override
-  Future<void> cancelBooking({required String bookingId}) async {
-    final res = await _client.mutate$CancelBooking(
-      Options$Mutation$CancelBooking(
-        variables: Variables$Mutation$CancelBooking(bookingId: bookingId),
-      ),
-    );
-    if (res.hasException) throw mapOperationException(res.exception!);
-  }
-}
-DART
-
-############################################
-# mobile app
-############################################
-
-cat > "$MOBILE_DIR/pubspec.yaml" <<'YAML'
-name: mobile
-description: Mini booking system (Flutter)
+WIDGET_DIR="$ROOT_DIR/client/windows_widget"
+
+mkdir -p "$WIDGET_DIR/lib/di"
+mkdir -p "$WIDGET_DIR/lib/src/models"
+mkdir -p "$WIDGET_DIR/lib/src/services"
+mkdir -p "$WIDGET_DIR/lib/src/utils"
+mkdir -p "$WIDGET_DIR/lib/features/dashboard/widgets"
+mkdir -p "$WIDGET_DIR/test"
+
+cat > "$WIDGET_DIR/pubspec.yaml" <<'YAML'
+name: windows_widget
+description: Mini Windows widget (Flutter desktop) for booking status
 publish_to: "none"
 version: 0.1.0
 
@@ -540,12 +25,11 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_riverpod: ^2.6.1
-  go_router: ^14.2.0
-  graphql_flutter: ^5.2.0-beta.7
   domain:
     path: ../packages/domain
   api_client:
     path: ../packages/api_client
+  graphql_flutter: ^5.2.0-beta.7
 
 dev_dependencies:
   flutter_test:
@@ -556,57 +40,40 @@ flutter:
   uses-material-design: true
 YAML
 
-cat > "$MOBILE_DIR/lib/main.dart" <<'DART'
+cat > "$WIDGET_DIR/lib/main.dart" <<'DART'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'routing/router.dart';
+import 'app.dart';
 
 void main() {
-  runApp(const ProviderScope(child: BookingApp()));
+  runApp(const ProviderScope(child: WindowsWidgetApp()));
 }
+DART
 
-class BookingApp extends StatelessWidget {
-  const BookingApp({super.key});
+cat > "$WIDGET_DIR/lib/app.dart" <<'DART'
+import 'package:flutter/material.dart';
+import 'features/dashboard/dashboard_page.dart';
+
+class WindowsWidgetApp extends StatelessWidget {
+  const WindowsWidgetApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      routerConfig: buildRouter(),
+    return MaterialApp(
+      title: 'Booking Widget',
+      theme: ThemeData(
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+        visualDensity: VisualDensity.compact,
+      ),
+      home: const DashboardPage(),
     );
   }
 }
 DART
 
-cat > "$MOBILE_DIR/lib/routing/router.dart" <<'DART'
-import 'package:go_router/go_router.dart';
-import '../features/hotels/hotels_page.dart';
-import '../features/rooms/rooms_page.dart';
-import '../features/room/room_page.dart';
-
-GoRouter buildRouter() {
-  return GoRouter(
-    initialLocation: '/hotels',
-    routes: [
-      GoRoute(
-        path: '/hotels',
-        builder: (_, __) => const HotelsPage(),
-        routes: [
-          GoRoute(
-            path: ':hotelId/rooms',
-            builder: (_, state) => RoomsPage(hotelId: state.pathParameters['hotelId']!),
-          ),
-        ],
-      ),
-      GoRoute(
-        path: '/rooms/:roomId',
-        builder: (_, state) => RoomPage(roomId: state.pathParameters['roomId']!),
-      ),
-    ],
-  );
-}
-DART
-
-cat > "$MOBILE_DIR/lib/di/providers.dart" <<'DART'
+cat > "$WIDGET_DIR/lib/di/providers.dart" <<'DART'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:api_client/api_client.dart';
 import 'package:domain/domain.dart';
@@ -640,22 +107,29 @@ final bookingRepoProvider = Provider<BookingRepository>((ref) {
 });
 DART
 
-cat > "$MOBILE_DIR/lib/utils/date_fmt.dart" <<'DART'
+cat > "$WIDGET_DIR/lib/src/utils/date.dart" <<'DART'
+DateTime startOfDayLocal(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
 String fmtDate(DateTime d) {
   final dd = d.day.toString().padLeft(2, '0');
   final mm = d.month.toString().padLeft(2, '0');
   final yyyy = d.year.toString().padLeft(4, '0');
   return '$dd.$mm.$yyyy';
 }
+
+String fmtDateTime(DateTime d) {
+  final hh = d.hour.toString().padLeft(2, '0');
+  final mi = d.minute.toString().padLeft(2, '0');
+  return '${fmtDate(d)} $hh:$mi';
+}
 DART
 
-cat > "$MOBILE_DIR/lib/utils/error_to_ui.dart" <<'DART'
+cat > "$WIDGET_DIR/lib/src/utils/error_to_ui.dart" <<'DART'
 import 'package:domain/domain.dart';
 
 String errorToUserMessage(Object error) {
   if (error is BookingConflictFailure) {
-    final n = error.conflictsCount;
-    return 'Даты заняты. Найдено конфликтов: $n.';
+    return 'Конфликт бронирования. Конфликтов: ${error.conflictsCount}.';
   }
   if (error is NetworkFailure) {
     return 'Проблема с сетью. Проверь подключение и попробуй снова.';
@@ -667,536 +141,274 @@ String errorToUserMessage(Object error) {
 }
 DART
 
-# Hotels
-cat > "$MOBILE_DIR/lib/features/hotels/hotels_providers.dart" <<'DART'
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+cat > "$WIDGET_DIR/lib/src/models/hotel_summary.dart" <<'DART'
 import 'package:domain/domain.dart';
-import '../../di/providers.dart';
 
-final hotelsProvider = FutureProvider<List<Hotel>>((ref) async {
-  final repo = ref.watch(hotelRepoProvider);
-  return repo.getHotels();
-});
-DART
+class RoomStatus {
+  final Room room;
+  final bool isAvailableToday;
+  final DateTime? nearestBookingStart; // min startDate среди ACTIVE
+  const RoomStatus({
+    required this.room,
+    required this.isAvailableToday,
+    required this.nearestBookingStart,
+  });
+}
 
-cat > "$MOBILE_DIR/lib/features/hotels/hotels_page.dart" <<'DART'
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'hotels_providers.dart';
+class HotelSummary {
+  final Hotel hotel;
+  final int freeToday;
+  final int busyToday;
+  final DateTime? nearestBookingStart; // min по всем комнатам
+  final List<RoomStatus> rooms;
 
-class HotelsPage extends ConsumerWidget {
-  const HotelsPage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hotels = ref.watch(hotelsProvider);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Отели')),
-      body: hotels.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
-        data: (items) => RefreshIndicator(
-          onRefresh: () async {
-            await ref.refresh(hotelsProvider.future);
-          },
-          child: ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final h = items[i];
-              return ListTile(
-                title: Text(h.name),
-                subtitle: Text(h.city),
-                onTap: () => context.go('/hotels/${h.id}/rooms'),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
+  const HotelSummary({
+    required this.hotel,
+    required this.freeToday,
+    required this.busyToday,
+    required this.nearestBookingStart,
+    required this.rooms,
+  });
 }
 DART
 
-# Rooms
-cat > "$MOBILE_DIR/lib/features/rooms/rooms_providers.dart" <<'DART'
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+cat > "$WIDGET_DIR/lib/src/services/hotel_summary_service.dart" <<'DART'
 import 'package:domain/domain.dart';
-import '../../di/providers.dart';
+import '../models/hotel_summary.dart';
+import '../utils/date.dart';
 
-final roomsProvider = FutureProvider.family<List<Room>, String>((ref, hotelId) async {
-  final repo = ref.watch(roomRepoProvider);
-  return repo.getRooms(hotelId: hotelId);
-});
-DART
+class HotelSummaryService {
+  final HotelRepository hotelRepo;
+  final RoomRepository roomRepo;
+  final BookingRepository bookingRepo;
 
-cat > "$MOBILE_DIR/lib/features/rooms/rooms_page.dart" <<'DART'
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'rooms_providers.dart';
-
-class RoomsPage extends ConsumerWidget {
-  final String hotelId;
-  const RoomsPage({super.key, required this.hotelId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rooms = ref.watch(roomsProvider(hotelId));
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Номера')),
-      body: rooms.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
-        data: (items) => RefreshIndicator(
-          onRefresh: () async {
-            await ref.refresh(roomsProvider(hotelId).future);
-          },
-          child: ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (_, i) {
-              final r = items[i];
-              final title = (r.title?.trim().isNotEmpty == true) ? r.title! : 'Номер ${r.number}';
-              return ListTile(
-                title: Text(title),
-                subtitle: Text('Вместимость: ${r.capacity} • €${r.priceEur}/ночь'),
-                trailing: Text('#${r.number}'),
-                onTap: () => context.go('/rooms/${r.id}'),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-DART
-
-# Room (details/actions)
-cat > "$MOBILE_DIR/lib/features/room/room_providers.dart" <<'DART'
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:domain/domain.dart';
-import '../../di/providers.dart';
-
-final roomDetailsProvider = FutureProvider.family<RoomDetails, String>((ref, roomId) async {
-  final repo = ref.watch(roomRepoProvider);
-  return repo.getRoomDetails(roomId: roomId);
-});
-
-class RoomActionState {
-  final DateTimeRange? selectedRange;
-  final AsyncValue<Availability?> availability;
-  final AsyncValue<void> lastAction;
-
-  const RoomActionState({
-    required this.selectedRange,
-    required this.availability,
-    required this.lastAction,
+  const HotelSummaryService({
+    required this.hotelRepo,
+    required this.roomRepo,
+    required this.bookingRepo,
   });
 
-  factory RoomActionState.initial() => const RoomActionState(
-        selectedRange: null,
-        availability: AsyncValue.data(null),
-        lastAction: AsyncValue.data(null),
-      );
+  Future<List<HotelSummary>> loadSummaries({DateTime? now}) async {
+    final current = now ?? DateTime.now();
+    final todayStart = startOfDayLocal(current);
+    final tomorrowStart = todayStart.add(const Duration(days: 1));
 
-  RoomActionState copyWith({
-    DateTimeRange? selectedRange,
-    AsyncValue<Availability?>? availability,
-    AsyncValue<void>? lastAction,
-  }) {
-    return RoomActionState(
-      selectedRange: selectedRange ?? this.selectedRange,
-      availability: availability ?? this.availability,
-      lastAction: lastAction ?? this.lastAction,
-    );
-  }
-}
+    final hotels = await hotelRepo.getHotels();
 
-class RoomActionController extends StateNotifier<RoomActionState> {
-  final Ref ref;
-  final String roomId;
-  Timer? _debounce;
+    final summaries = await Future.wait(hotels.map((h) async {
+      final rooms = await roomRepo.getRooms(hotelId: h.id);
 
-  RoomActionController(this.ref, this.roomId) : super(RoomActionState.initial());
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  void setRange(DateTimeRange? range) {
-    state = state.copyWith(
-      selectedRange: range,
-      availability: const AsyncValue.data(null),
-    );
-
-    if (range == null) return;
-
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      // ignore: discarded_futures
-      checkAvailability();
-    });
-  }
-
-  Future<void> checkAvailability() async {
-    final range = state.selectedRange;
-    if (range == null) return;
-
-    state = state.copyWith(availability: const AsyncValue.loading());
-    final repo = ref.read(bookingRepoProvider);
-
-    state = state.copyWith(
-      availability: await AsyncValue.guard(() async {
-        return repo.checkAvailability(
-          roomId: roomId,
-          start: range.start,
-          end: range.end,
+      final roomStatuses = await Future.wait(rooms.map((r) async {
+        final availability = await bookingRepo.checkAvailability(
+          roomId: r.id,
+          start: todayStart,
+          end: tomorrowStart,
         );
-      }),
-    );
-  }
 
-  Future<void> createBooking({required String guestName}) async {
-    final range = state.selectedRange;
-    if (range == null) return;
+        final details = await roomRepo.getRoomDetails(roomId: r.id);
+        final nearest = _nearestBookingStart(details.bookings, current);
 
-    state = state.copyWith(lastAction: const AsyncValue.loading());
-    final repo = ref.read(bookingRepoProvider);
+        return RoomStatus(
+          room: r,
+          isAvailableToday: availability.isAvailable,
+          nearestBookingStart: nearest,
+        );
+      }));
 
-    final res = await AsyncValue.guard(() async {
-      await repo.createBooking(
-        roomId: roomId,
-        guestName: guestName,
-        start: range.start,
-        end: range.end,
+      final freeToday = roomStatuses.where((s) => s.isAvailableToday).length;
+      final busyToday = roomStatuses.length - freeToday;
+
+      DateTime? hotelNearest;
+      for (final rs in roomStatuses) {
+        final n = rs.nearestBookingStart;
+        if (n == null) continue;
+        if (hotelNearest == null || n.isBefore(hotelNearest)) hotelNearest = n;
+      }
+
+      final sorted = [...roomStatuses]..sort((a, b) => a.room.number.compareTo(b.room.number));
+
+      return HotelSummary(
+        hotel: h,
+        freeToday: freeToday,
+        busyToday: busyToday,
+        nearestBookingStart: hotelNearest,
+        rooms: sorted,
       );
-    });
+    }));
 
-    state = state.copyWith(lastAction: res);
-
-    if (!res.hasError) {
-      ref.invalidate(roomDetailsProvider(roomId));
-      state = state.copyWith(availability: const AsyncValue.data(null));
-    }
+    summaries.sort((a, b) => a.hotel.name.compareTo(b.hotel.name));
+    return summaries;
   }
 
-  Future<void> cancelBooking({required String bookingId}) async {
-    state = state.copyWith(lastAction: const AsyncValue.loading());
-    final repo = ref.read(bookingRepoProvider);
+  DateTime? _nearestBookingStart(List<Booking> bookings, DateTime now) {
+    final active = bookings.where((b) => b.status == BookingStatus.active).toList();
+    if (active.isEmpty) return null;
 
-    final res = await AsyncValue.guard(() async {
-      await repo.cancelBooking(bookingId: bookingId);
-    });
+    final futureOrNow = active.where((b) => !b.startDate.isBefore(now)).toList();
+    final source = futureOrNow.isNotEmpty ? futureOrNow : active;
 
-    state = state.copyWith(lastAction: res);
-
-    if (!res.hasError) {
-      ref.invalidate(roomDetailsProvider(roomId));
-      state = state.copyWith(availability: const AsyncValue.data(null));
-    }
+    source.sort((a, b) => a.startDate.compareTo(b.startDate));
+    return source.first.startDate;
   }
 }
+DART
 
-final roomActionControllerProvider =
-    StateNotifierProvider.family<RoomActionController, RoomActionState, String>((ref, roomId) {
-  return RoomActionController(ref, roomId);
+cat > "$WIDGET_DIR/lib/features/dashboard/dashboard_providers.dart" <<'DART'
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../di/providers.dart';
+import '../../src/services/hotel_summary_service.dart';
+import '../../src/models/hotel_summary.dart';
+
+final hotelSummaryServiceProvider = Provider<HotelSummaryService>((ref) {
+  return HotelSummaryService(
+    hotelRepo: ref.watch(hotelRepoProvider),
+    roomRepo: ref.watch(roomRepoProvider),
+    bookingRepo: ref.watch(bookingRepoProvider),
+  );
+});
+
+final hotelSummariesProvider = FutureProvider<List<HotelSummary>>((ref) async {
+  final service = ref.watch(hotelSummaryServiceProvider);
+  return service.loadSummaries();
 });
 DART
 
-cat > "$MOBILE_DIR/lib/features/room/room_page.dart" <<'DART'
+cat > "$WIDGET_DIR/lib/features/dashboard/widgets/hotel_summary_card.dart" <<'DART'
+import 'package:flutter/material.dart';
+import '../../../src/models/hotel_summary.dart';
+import '../../../src/utils/date.dart';
+
+class HotelSummaryCard extends StatelessWidget {
+  final HotelSummary summary;
+  const HotelSummaryCard({super.key, required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final h = summary.hotel;
+    final nearest = summary.nearestBookingStart;
+
+    return Card(
+      child: ExpansionTile(
+        title: Text(h.name),
+        subtitle: Text('${h.city} • свободно: ${summary.freeToday} • занято: ${summary.busyToday}'),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  nearest == null ? 'Ближайших броней нет' : 'Ближайшая бронь: ${fmtDateTime(nearest)}',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          ...summary.rooms.map((rs) {
+            final r = rs.room;
+            final statusText = rs.isAvailableToday ? 'Свободно сегодня' : 'Занято сегодня';
+            final nearestRoom = rs.nearestBookingStart;
+
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(rs.isAvailableToday ? Icons.check_circle : Icons.block),
+              title: Text('№${r.number}${(r.title?.trim().isNotEmpty ?? false) ? ' — ${r.title}' : ''}'),
+              subtitle: Text(
+                nearestRoom == null
+                    ? statusText
+                    : '$statusText • ближайшая: ${fmtDateTime(nearestRoom)}',
+              ),
+              trailing: Text('€${r.priceEur}'),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+DART
+
+cat > "$WIDGET_DIR/lib/features/dashboard/dashboard_page.dart" <<'DART'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:domain/domain.dart';
-import '../../utils/date_fmt.dart';
-import '../../utils/error_to_ui.dart';
-import 'room_providers.dart';
+import '../../src/utils/error_to_ui.dart';
+import 'dashboard_providers.dart';
+import 'widgets/hotel_summary_card.dart';
 
-class RoomPage extends ConsumerWidget {
-  final String roomId;
-  const RoomPage({super.key, required this.roomId});
+class DashboardPage extends ConsumerWidget {
+  const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final details = ref.watch(roomDetailsProvider(roomId));
-    final actions = ref.watch(roomActionControllerProvider(roomId));
-    final controller = ref.read(roomActionControllerProvider(roomId).notifier);
+    final summaries = ref.watch(hotelSummariesProvider);
 
-    ref.listen(roomActionControllerProvider(roomId).select((s) => s.lastAction), (prev, next) {
-      next.whenOrNull(
-        error: (e, _) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorToUserMessage(e))),
-          );
-        },
-      );
-    });
-
-    ref.listen(roomActionControllerProvider(roomId).select((s) => s.availability), (prev, next) {
-      next.whenOrNull(
-        error: (e, _) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorToUserMessage(e))),
-          );
-        },
-      );
-    });
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Номер')),
-      body: details.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(errorToUserMessage(e))),
-        data: (d) {
-          final r = d.room;
-          final title = (r.title?.trim().isNotEmpty == true) ? r.title! : 'Номер ${r.number}';
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              await ref.refresh(roomDetailsProvider(roomId).future);
-              // сброс устаревшей availability
-              controller.setRange(actions.selectedRange);
-            },
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(title, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 8),
-                Text('Вместимость: ${r.capacity} • €${r.priceEur}/ночь • #${r.number}'),
-                const SizedBox(height: 16),
-
-                _DateRangeCard(
-                  range: actions.selectedRange,
-                  onPick: () async {
-                    final now = DateTime.now();
-                    final picked = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(now.year, now.month, now.day),
-                      lastDate: DateTime(now.year + 2),
-                      initialDateRange: actions.selectedRange,
-                    );
-                    if (picked != null) controller.setRange(picked);
-                  },
-                  onClear: () => controller.setRange(null),
-                ),
-
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: actions.selectedRange == null || actions.availability.isLoading
-                            ? null
-                            : () => controller.checkAvailability(),
-                        child: actions.availability.isLoading
-                            ? const SizedBox(
-                                height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Проверить доступность'),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                actions.availability.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (e, _) => Text(errorToUserMessage(e)),
-                  data: (a) {
-                    if (a == null) return const SizedBox.shrink();
-                    return _AvailabilityCard(a: a);
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                _BookingActions(
-                  isBusy: actions.lastAction.isLoading,
-                  availability: actions.availability.valueOrNull,
-                  onBook: (guestName) => controller.createBooking(guestName: guestName),
-                ),
-
-                const SizedBox(height: 24),
-
-                Text('Активные брони', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-
-                if (d.bookings.isEmpty)
-                  const Text('Нет активных броней.')
-                else
-                  ...d.bookings.map((b) => _BookingTile(
-                        booking: b,
-                        onCancel: actions.lastAction.isLoading
-                            ? null
-                            : () => controller.cancelBooking(bookingId: b.id),
-                      )),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _DateRangeCard extends StatelessWidget {
-  final DateTimeRange? range;
-  final VoidCallback onPick;
-  final VoidCallback onClear;
-
-  const _DateRangeCard({required this.range, required this.onPick, required this.onClear});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = range == null ? 'Диапазон не выбран' : '${fmtDate(range!.start)} → ${fmtDate(range!.end)}';
-
-    return Card(
-      child: ListTile(
-        title: const Text('Даты'),
-        subtitle: Text(text),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(onPressed: onPick, icon: const Icon(Icons.date_range)),
-            if (range != null) IconButton(onPressed: onClear, icon: const Icon(Icons.clear)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AvailabilityCard extends StatelessWidget {
-  final Availability a;
-  const _AvailabilityCard({required this.a});
-
-  @override
-  Widget build(BuildContext context) {
-    if (a.isAvailable) {
-      return const Card(
-        child: ListTile(
-          leading: Icon(Icons.check_circle),
-          title: Text('Доступно'),
-          subtitle: Text('Конфликтов не найдено'),
-        ),
-      );
+    Future<void> refresh() async {
+      await ref.refresh(hotelSummariesProvider.future);
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.error),
-              title: Text('Недоступно'),
-              subtitle: Text('Есть конфликты'),
-            ),
-            const SizedBox(height: 8),
-            ...a.conflicts.map((c) => Text('• ${c.guestName}: ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}')),
-          ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Отели — статус сегодня'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Обновить',
+            onPressed: () => refresh(),
+          ),
+        ],
+      ),
+      body: summaries.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _ErrorState(
+          message: errorToUserMessage(e),
+          onRetry: refresh,
+        ),
+        data: (items) => RefreshIndicator(
+          onRefresh: refresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, i) => HotelSummaryCard(summary: items[i]),
+          ),
         ),
       ),
     );
   }
 }
 
-class _BookingActions extends StatefulWidget {
-  final bool isBusy;
-  final Availability? availability;
-  final Future<void> Function(String guestName) onBook;
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
 
-  const _BookingActions({required this.isBusy, required this.availability, required this.onBook});
-
-  @override
-  State<_BookingActions> createState() => _BookingActionsState();
-}
-
-class _BookingActionsState extends State<_BookingActions> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String? _validateName(String raw) {
-    final name = raw.trim();
-    if (name.isEmpty) return 'Введите имя гостя';
-    if (name.length < 2) return 'Имя слишком короткое';
-    if (name.length > 50) return 'Имя слишком длинное (макс 50)';
-    return null;
-  }
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    final canBook = widget.availability?.isAvailable == true && !widget.isBusy;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(labelText: 'Имя гостя'),
-              textInputAction: TextInputAction.done,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(message),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => onRetry(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Повторить'),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: canBook
-                    ? () async {
-                        final err = _validateName(_controller.text);
-                        if (err != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
-                          return;
-                        }
-                        await widget.onBook(_controller.text.trim());
-                      }
-                    : null,
-                child: widget.isBusy
-                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Забронировать'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BookingTile extends StatelessWidget {
-  final Booking booking;
-  final VoidCallback? onCancel;
-
-  const _BookingTile({required this.booking, required this.onCancel});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(booking.guestName),
-        subtitle: Text('${fmtDate(booking.startDate)} → ${fmtDate(booking.endDate)}'),
-        trailing: IconButton(
-          icon: const Icon(Icons.cancel),
-          onPressed: onCancel,
-          tooltip: 'Отменить бронь',
+          ),
         ),
       ),
     );
@@ -1204,10 +416,163 @@ class _BookingTile extends StatelessWidget {
 }
 DART
 
-echo ""
-echo "✅ Flutter/packages files written."
+cat > "$WIDGET_DIR/test/hotel_summary_service_test.dart" <<'DART'
+import 'package:flutter_test/flutter_test.dart';
+import 'package:domain/domain.dart';
+import 'package:windows_widget/src/services/hotel_summary_service.dart';
+
+class FakeHotelRepo implements HotelRepository {
+  final List<Hotel> hotels;
+  FakeHotelRepo(this.hotels);
+
+  @override
+  Future<List<Hotel>> getHotels() async => hotels;
+}
+
+class FakeRoomRepo implements RoomRepository {
+  final Map<String, List<Room>> roomsByHotel;
+  final Map<String, RoomDetails> detailsByRoomId;
+
+  FakeRoomRepo({required this.roomsByHotel, required this.detailsByRoomId});
+
+  @override
+  Future<List<Room>> getRooms({required String hotelId}) async {
+    return roomsByHotel[hotelId] ?? const [];
+  }
+
+  @override
+  Future<RoomDetails> getRoomDetails({required String roomId}) async {
+    final d = detailsByRoomId[roomId];
+    if (d == null) throw StateError('No details for roomId=$roomId');
+    return d;
+  }
+}
+
+class FakeBookingRepo implements BookingRepository {
+  final Map<String, Availability> availabilityByRoomId;
+  FakeBookingRepo(this.availabilityByRoomId);
+
+  @override
+  Future<Availability> checkAvailability({
+    required String roomId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final a = availabilityByRoomId[roomId];
+    if (a == null) throw StateError('No availability for roomId=$roomId');
+    return a;
+  }
+
+  @override
+  Future<Booking> createBooking({
+    required String roomId,
+    required String guestName,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> cancelBooking({required String bookingId}) {
+    throw UnimplementedError();
+  }
+}
+
+void main() {
+  test('computes free/busy today and nearest booking per hotel', () async {
+    final hotel = Hotel(id: 'h1', name: 'Hotel A', city: 'AMS');
+
+    final room1 = Room(id: 'r1', hotelId: 'h1', number: '101', title: null, capacity: 2, priceEur: 100);
+    final room2 = Room(id: 'r2', hotelId: 'h1', number: '102', title: null, capacity: 2, priceEur: 120);
+
+    final now = DateTime(2026, 2, 22, 10, 0);
+
+    final service = HotelSummaryService(
+      hotelRepo: FakeHotelRepo([hotel]),
+      roomRepo: FakeRoomRepo(
+        roomsByHotel: {'h1': [room1, room2]},
+        detailsByRoomId: {
+          'r1': RoomDetails(room: room1, bookings: [
+            Booking(
+              id: 'b1',
+              roomId: 'r1',
+              guestName: 'X',
+              startDate: DateTime(2026, 2, 25),
+              endDate: DateTime(2026, 2, 26),
+              status: BookingStatus.active,
+            ),
+          ]),
+          'r2': RoomDetails(room: room2, bookings: [
+            Booking(
+              id: 'b2',
+              roomId: 'r2',
+              guestName: 'Y',
+              startDate: DateTime(2026, 2, 23),
+              endDate: DateTime(2026, 2, 24),
+              status: BookingStatus.active,
+            ),
+          ]),
+        },
+      ),
+      bookingRepo: FakeBookingRepo({
+        'r1': Availability(
+          roomId: 'r1',
+          startDate: DateTime(2026, 2, 22),
+          endDate: DateTime(2026, 2, 23),
+          isAvailable: true,
+          conflicts: const [],
+        ),
+        'r2': Availability(
+          roomId: 'r2',
+          startDate: DateTime(2026, 2, 22),
+          endDate: DateTime(2026, 2, 23),
+          isAvailable: false,
+          conflicts: const [],
+        ),
+      }),
+    );
+
+    final summaries = await service.loadSummaries(now: now);
+    expect(summaries, hasLength(1));
+
+    final s = summaries.first;
+    expect(s.freeToday, 1);
+    expect(s.busyToday, 1);
+    expect(s.nearestBookingStart, DateTime(2026, 2, 23));
+  });
+
+  test('fail-fast if availability missing for a room', () async {
+    final hotel = Hotel(id: 'h1', name: 'Hotel A', city: 'AMS');
+    final room = Room(id: 'r1', hotelId: 'h1', number: '101', title: null, capacity: 2, priceEur: 100);
+
+    final service = HotelSummaryService(
+      hotelRepo: FakeHotelRepo([hotel]),
+      roomRepo: FakeRoomRepo(
+        roomsByHotel: {'h1': [room]},
+        detailsByRoomId: {
+          'r1': RoomDetails(room: room, bookings: const []),
+        },
+      ),
+      bookingRepo: FakeBookingRepo({}),
+    );
+
+    await expectLater(
+      () => service.loadSummaries(now: DateTime(2026, 2, 22)),
+      throwsA(isA<StateError>()),
+    );
+  });
+}
+DART
+
+echo "✅ Created windows_widget app at: $WIDGET_DIR"
 echo ""
 echo "Next steps:"
-echo "1) (api_client) cd client/packages/api_client && dart pub get && dart run build_runner build --delete-conflicting-outputs"
-echo "2) (mobile) cd client/mobile && flutter pub get"
-echo "3) flutter run --dart-define=API_BASE_URL=http://localhost:4000/graphql (iOS) or http://10.0.2.2:4000/graphql (Android emulator)"
+echo "1) Ensure backend is up: docker compose up --build"
+echo "2) Ensure api_client codegen is done: (cd client/packages/api_client && ./tool/build.sh)"
+echo "3) Run widget:"
+echo "   cd client/windows_widget && flutter pub get"
+echo "   flutter run -d windows --dart-define=API_BASE_URL=http://localhost:4000/graphql"
+echo ""
+echo "Run tests:"
+echo "   cd client/windows_widget && flutter test"
